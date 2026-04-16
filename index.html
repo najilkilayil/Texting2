@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Money Use Pro</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- ✅ Firebase Compat -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+body{
+    background:#0b0b0f;
+    color:white;
+    font-family:sans-serif;
+    margin:0;
+}
+
+.main{
+    padding:20px;
+    max-width:700px;
+    margin:auto;
+}
+
+.card{
+    background:#17171c;
+    padding:20px;
+    border-radius:15px;
+    margin-bottom:20px;
+}
+
+.btn{
+    background:#8b5cf6;
+    padding:12px;
+    text-align:center;
+    border-radius:10px;
+    cursor:pointer;
+    margin-top:10px;
+}
+
+input,select{
+    padding:10px;
+    margin:5px;
+    border-radius:8px;
+    border:none;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+td,th{
+    padding:10px;
+    border-bottom:1px solid #333;
+}
+</style>
+</head>
+
+<body>
+
+<div class="main">
+
+<div class="card">
+<h2>Total: ₹<span id="total">0</span></h2>
+</div>
+
+<div class="card">
+<input type="number" id="amount" placeholder="Amount">
+<select id="category">
+<option>Bus</option>
+<option>Food</option>
+<option>Others</option>
+</select>
+<div class="btn" onclick="add()">+ Add Money</div>
+</div>
+
+<div class="card">
+<canvas id="chart"></canvas>
+</div>
+
+<div class="card">
+<table id="table"></table>
+</div>
+
+</div>
+
+<script>
+
+// 🔥 YOUR FIREBASE CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyCXs5k4DfKRnYi0HFNYwGBZ22K14z-jQxI",
+  authDomain: "money-app-c1126.firebaseapp.com",
+  projectId: "money-app-c1126",
+  storageBucket: "money-app-c1126.firebasestorage.app",
+  messagingSenderId: "433481963103",
+  appId: "1:433481963103:web:678241640182888ea8edea",
+  measurementId: "G-JDQ6DT7G4Q"
+};
+
+// 🔥 INIT
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let chart;
+
+// 🔄 LOAD DATA
+function load(){
+    db.collection("money").onSnapshot(snapshot=>{
+        let data=[];
+        let total=0;
+
+        snapshot.forEach(doc=>{
+            let d=doc.data();
+            d.id = doc.id;
+            data.push(d);
+            total += d.amount;
+        });
+
+        document.getElementById("total").innerText = total;
+
+        renderTable(data);
+        renderChart(data);
+    });
+}
+
+// ➕ ADD
+function add(){
+    let amount = parseInt(document.getElementById("amount").value);
+    let category = document.getElementById("category").value;
+    let date = new Date().toLocaleDateString();
+
+    if(!amount) return alert("Enter amount");
+
+    db.collection("money").add({
+        amount, category, date
+    });
+
+    document.getElementById("amount").value="";
+}
+
+// ❌ DELETE
+function del(id){
+    db.collection("money").doc(id).delete();
+}
+
+// ✏️ EDIT
+function edit(id,oldAmount){
+    let newAmount = prompt("Edit amount:", oldAmount);
+    if(newAmount){
+        db.collection("money").doc(id).update({
+            amount: parseInt(newAmount)
+        });
+    }
+}
+
+// 📋 TABLE
+function renderTable(data){
+
+    let html = `
+    <tr>
+        <th>Date</th>
+        <th>Amount</th>
+        <th>Category</th>
+        <th>Action</th>
+    </tr>`;
+
+    data.forEach(d=>{
+        html += `
+        <tr>
+            <td>${d.date}</td>
+            <td>₹${d.amount}</td>
+            <td>${d.category}</td>
+            <td>
+                <button onclick="edit('${d.id}',${d.amount})">✏️</button>
+                <button onclick="del('${d.id}')">❌</button>
+            </td>
+        </tr>`;
+    });
+
+    document.getElementById("table").innerHTML = html;
+}
+
+// 📊 GRAPH
+function renderChart(data){
+
+    let bus=0, food=0, others=0;
+
+    data.forEach(d=>{
+        if(d.category=="Bus") bus+=d.amount;
+        else if(d.category=="Food") food+=d.amount;
+        else others+=d.amount;
+    });
+
+    let ctx = document.getElementById("chart");
+
+    if(chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+        type:'bar',
+        data:{
+            labels:["Bus","Food","Others"],
+            datasets:[{
+                label:"Expense",
+                data:[bus,food,others]
+            }]
+        }
+    });
+}
+
+load();
+
+</script>
+
+</body>
+</html>
